@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- grub-icon-menu: monochrome Windows logo (four panes with the slight
+     perspective of the Windows 10 mark), black on transparent. 1000 x 1000. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000">
+  <polygon fill="#000000" points="0,138 432,80 432,480 0,480"/>
+  <polygon fill="#000000" points="474,74 1000,0 1000,480 474,480"/>
+  <polygon fill="#000000" points="0,520 432,520 432,920 0,862"/>
+  <polygon fill="#000000" points="474,520 1000,520 1000,1000 474,926"/>
+</svg>

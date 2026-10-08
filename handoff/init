@@ -1,0 +1,157 @@
+#!/bin/busybox sh
+#
+# handoff/init - /init of handoff.img, the "start Windows through the UEFI
+# firmware" program of grub-icon-menu.
+#
+# Why: BitLocker seals its key to TPM measurements of the boot chain. When
+# GRUB chainloads Windows Boot Manager the chain is shim + GRUB + bootmgfw;
+# when the firmware starts it, the chain is bootmgfw alone. Only the second
+# one matches what BitLocker sealed, so a chainloaded Windows asks for the
+# recovery key.
+#
+# What: GRUB's Windows icon boots the signed Ubuntu kernel with this tiny
+# initrd. It sets the one-time UEFI variable BootNext to the firmware's own
+# "Windows Boot Manager" entry and restarts. After the restart the firmware
+# starts Windows directly. It deletes BootNext when it uses it, so the next
+# boot is a normal one again.
+#
+# Nothing else is touched: no disk is mounted or written (the NVMe driver is
+# not even in this initrd), and BootOrder and the Boot#### entries stay as
+# they are. If anything is unexpected, nothing is written. The program then
+# explains what happened and turns the computer off, so a broken setup can
+# never loop.
+#
+# Kernel parameters:
+#   gim.bootnext=XXXX  the Boot#### number update-grub found. It is checked
+#                      again here. If that entry does not start the expected
+#                      file any more, the boot entries are searched for it.
+#   gim.match=PATH     the file the entry must start, e.g.
+#                      /efi/kali/shimx64.efi for the Kali icon (other systems
+#                      with their own UEFI boot entry). Without it: Windows
+#                      Boot Manager, \EFI\Microsoft\Boot\bootmgfw.efi.
+#
+# Test mode (tests/run-tests.sh, never as PID 1): GIM_HANDOFF_TEST=DIR
+# uses DIR/efivars and DIR/cmdline, and prints REBOOT / POWEROFF instead.
+
+GUID=8be4df61-93ca-11d2-aa0d-00e098032b8c   # EFI_GLOBAL_VARIABLE
+
+if [ -n "${GIM_HANDOFF_TEST:-}" ] && [ "$$" != 1 ]; then
+    V="$GIM_HANDOFF_TEST/efivars"
+    CMDLINE="$GIM_HANDOFF_TEST/cmdline"
+    TMP="$GIM_HANDOFF_TEST"
+    reboot_now()   { echo REBOOT; exit 0; }
+    poweroff_now() { echo POWEROFF; exit 1; }
+    to_console()   { :; }
+else
+    /bin/busybox --install -s /bin
+    export PATH=/bin
+    mount -t proc proc /proc
+    mount -t sysfs sysfs /sys
+    mount -t devtmpfs devtmpfs /dev
+    mount -t efivarfs efivarfs /sys/firmware/efi/efivars
+    V=/sys/firmware/efi/efivars
+    CMDLINE=/proc/cmdline
+    TMP=/tmp
+    # PID 1 must never exit (kernel panic): the sleeps only guard that.
+    reboot_now()   { reboot -f; sleep 60; }
+    poweroff_now() { poweroff -f; sleep 60; }
+    # On success the screen is left alone (GRUB's white screen stays until
+    # the restart); text only appears when something went wrong.
+    to_console()   { exec </dev/console >/dev/console 2>&1; }
+fi
+
+MATCH='\efi\microsoft\boot\bootmgfw.efi'
+WHAT=Windows
+ENTRY='"Windows Boot Manager"'
+
+fail() {
+    to_console
+    echo
+    echo "  grub-icon-menu: $WHAT could not be started through the UEFI firmware."
+    echo
+    echo "  $*"
+    echo
+    if [ "$WHAT" = Windows ]; then
+        echo "  Windows was not started, so BitLocker was not involved."
+    else
+        echo "  Nothing was started and nothing was changed."
+    fi
+    echo "  To start it now, use the firmware boot menu (F9 on HP laptops)"
+    echo "  and choose $ENTRY."
+    echo
+    echo "  Press Enter to restart into the boot menu, or wait 60 seconds and"
+    echo "  the computer turns off."
+    if read -r -t 60 _; then reboot_now; fi
+    poweroff_now
+}
+
+# Data bytes of BootNext as 4 hex digits in memory order (Boot0001 -> 0100).
+bootnext_data() {
+    od -An -tx1 "$V/BootNext-$GUID" 2>/dev/null | tr -d ' \n' | sed 's/^........//'
+}
+
+# Does Boot$1 start the file $MATCH (Windows: \efi\microsoft\boot\bootmgfw.efi)?
+# Its device path holds the file name in UTF-16; without the zero bytes it
+# reads as ASCII.
+is_target() {
+    [ -f "$V/Boot$1-$GUID" ] || return 1
+    tr -d '\000' <"$V/Boot$1-$GUID" | tr 'A-Z' 'a-z' | grep -qF "$MATCH"
+}
+
+ls "$V" 2>/dev/null | grep -q "^Boot[0-9A-F]\{4\}-$GUID\$" \
+    || fail "The UEFI boot entries cannot be read (no UEFI variables)."
+
+want=""
+for arg in $(cat "$CMDLINE" 2>/dev/null); do
+    case "$arg" in
+        gim.bootnext=*) want="$(echo "${arg#gim.bootnext=}" | tr 'a-f' 'A-F')" ;;
+        gim.match=*)    m="${arg#gim.match=}" ;;
+    esac
+done
+case "$want" in [0-9A-F][0-9A-F][0-9A-F][0-9A-F]) ;; *) want="" ;; esac
+if [ -n "${m:-}" ]; then
+    # Only plain file paths under /efi/ (nothing that grep could misread).
+    case "$m" in
+        /efi/*/*.efi) ;;
+        *) fail "Invalid gim.match=$m on the kernel command line." ;;
+    esac
+    case "$m" in *[!a-z0-9/._+-]*) fail "Invalid gim.match=$m on the kernel command line." ;; esac
+    MATCH="$(echo "$m" | tr '/' '\\')"
+    case "$MATCH" in
+        '\efi\microsoft\boot\bootmgfw.efi') ;;
+        *) WHAT="The selected system"; ENTRY="its entry ($MATCH)" ;;
+    esac
+fi
+
+num=""
+if [ -n "$want" ] && is_target "$want"; then
+    num="$want"
+else
+    for f in "$V"/Boot[0-9A-F][0-9A-F][0-9A-F][0-9A-F]-"$GUID"; do
+        n="${f##*/Boot}"; n="${n%%-*}"
+        if is_target "$n"; then num="$n"; break; fi
+    done
+fi
+if [ -z "$num" ]; then
+    if [ "$WHAT" = Windows ]; then fail "The firmware boot list has no \"Windows Boot Manager\" entry."; fi
+    fail "The firmware boot list has no entry for $MATCH."
+fi
+
+lo="${num#??}"; hi="${num%??}"           # UEFI stores the UINT16 little-endian
+data="$(echo "$lo$hi" | tr 'A-F' 'a-f')"
+
+# A BootNext for this entry that is still set means the firmware ignored the
+# previous request. Writing it again could restart in a loop: stop here, and
+# remove the leftover so it cannot fire at some later, unexpected boot.
+if [ "$(bootnext_data)" = "$data" ]; then
+    rm -f "$V/BootNext-$GUID"
+    fail "The firmware did not use the last request (BootNext=Boot$num was still set)."
+fi
+
+# One write of attributes (NV+BS+RT = 7) and value, as efivarfs requires.
+printf "\\007\\000\\000\\000\\$(printf %03o $((0x$lo)))\\$(printf %03o $((0x$hi)))" >"$TMP/bootnext"
+dd if="$TMP/bootnext" of="$V/BootNext-$GUID" bs=6 count=1 conv=notrunc 2>/dev/null
+got="$(bootnext_data)"
+[ "$got" = "$data" ] || fail "BootNext could not be set (read back: '${got:-nothing}')."
+
+reboot_now

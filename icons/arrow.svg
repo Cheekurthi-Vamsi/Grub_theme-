@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- grub-icon-menu: selection arrow. Vector trace of
+     "Minimalist Black Navigation Arrow.png" (same folder): its four edges are
+     straight lines, fitted to the PNG's edge pixels (RMS error < 1 px at
+     1254 px) and made symmetric. Rendered from these points, the arrow stays
+     sharp at every screen size. Black on transparent, 448.94 x 389.21. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="448.94" height="389.21" viewBox="0 0 448.94 389.21">
+  <polygon fill="#000000" points="224.47,0 448.94,389.21 224.47,239.36 0,389.21"/>
+</svg>

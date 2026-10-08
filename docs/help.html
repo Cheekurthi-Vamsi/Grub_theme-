@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boot Help Notes</title>
+<meta name="description" content="What to do when the Ubuntu + Windows (BitLocker) dual boot with grub-icon-menu misbehaves.">
+<style>
+  :root {
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --text: #1c1c1e;
+    --muted: #5d5d63;
+    --border: #dddbd5;
+    --accent: #2457c5;
+    --code-bg: #f0eee9;
+    --ok: #1d7a46;
+    --ok-bg: #e7f4ec;
+    --warn: #8a5a00;
+    --warn-bg: #fdf3dc;
+    --bad: #b3261e;
+    --bad-bg: #fbe9e7;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141517;
+      --surface: #1d1f22;
+      --text: #ececee;
+      --muted: #a4a6ad;
+      --border: #33363b;
+      --accent: #8ab0ff;
+      --code-bg: #26292d;
+      --ok: #7fd3a1;
+      --ok-bg: #18301f;
+      --warn: #f2c66b;
+      --warn-bg: #33290f;
+      --bad: #ff9a8f;
+      --bad-bg: #3a1a17;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141517;
+    --surface: #1d1f22;
+    --text: #ececee;
+    --muted: #a4a6ad;
+    --border: #33363b;
+    --accent: #8ab0ff;
+    --code-bg: #26292d;
+    --ok: #7fd3a1;
+    --ok-bg: #18301f;
+    --warn: #f2c66b;
+    --warn-bg: #33290f;
+    --bad: #ff9a8f;
+    --bad-bg: #3a1a17;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Ubuntu, Cantarell, "Noto Sans", sans-serif;
+  }
+  main { max-width: 820px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.75rem; line-height: 1.2; margin: 8px 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 1.2rem; margin: 40px 0 12px; padding-top: 8px; }
+  h3 { font-size: 1rem; margin: 18px 0 6px; }
+  p, li { max-width: 70ch; }
+  a { color: var(--accent); }
+  .lead { color: var(--muted); margin: 0 0 16px; }
+  code, pre, kbd { font-family: ui-monospace, "SFMono-Regular", "DejaVu Sans Mono", Menlo, Consolas, monospace; font-size: 0.9em; }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+  kbd { border: 1px solid var(--border); border-bottom-width: 2px; background: var(--surface); padding: 0 6px; border-radius: 5px; white-space: nowrap; }
+  .cmd { position: relative; margin: 8px 0 12px; }
+  .cmd pre {
+    margin: 0; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; overflow-x: auto; white-space: pre; line-height: 1.45;
+  }
+  .cmd button {
+    position: absolute; top: 6px; right: 6px; font: inherit; font-size: 0.75rem;
+    border: 1px solid var(--border); background: var(--surface); color: var(--muted);
+    border-radius: 6px; padding: 2px 8px; cursor: pointer;
+  }
+  .cmd button:hover { color: var(--text); }
+  nav.toc { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; }
+  nav.toc ul { margin: 4px 0; padding-left: 20px; columns: 2 260px; column-gap: 24px; }
+  nav.toc li { margin: 2px 0; break-inside: avoid; }
+  .callout { border-radius: var(--radius); padding: 12px 16px; margin: 14px 0; border: 1px solid transparent; }
+  .callout > :first-child { margin-top: 0; }
+  .callout > :last-child { margin-bottom: 0; }
+  .callout.key { background: var(--warn-bg); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+  .callout.ok { background: var(--ok-bg); border-color: color-mix(in srgb, var(--ok) 35%, transparent); }
+  .callout.bad { background: var(--bad-bg); border-color: color-mix(in srgb, var(--bad) 35%, transparent); }
+  .callout strong.tag { display: inline-block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .key .tag { color: var(--warn); } .ok .tag { color: var(--ok); } .bad .tag { color: var(--bad); }
+  details.case {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    margin: 10px 0; padding: 0 16px;
+  }
+  details.case > summary {
+    cursor: pointer; list-style: none; padding: 14px 0; font-weight: 600;
+    display: flex; gap: 10px; align-items: baseline;
+  }
+  details.case > summary::-webkit-details-marker { display: none; }
+  details.case > summary::before { content: "▸"; color: var(--muted); transition: transform .15s; display: inline-block; }
+  details.case[open] > summary::before { transform: rotate(90deg); }
+  details.case > summary .hint { font-weight: 400; color: var(--muted); font-size: 0.9rem; margin-left: auto; }
+  details.case .body { padding: 0 0 14px; border-top: 1px solid var(--border); }
+  .label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 14px 0 2px; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 12px; font-size: 0.95rem; }
+  th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 0.85rem; }
+  .tablewrap { overflow-x: auto; }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 0; }
+  .toolbar button {
+    font: inherit; font-size: 0.85rem; border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); border-radius: 8px; padding: 5px 12px; cursor: pointer;
+  }
+  footer { color: var(--muted); font-size: 0.85rem; margin-top: 48px; border-top: 1px solid var(--border); padding-top: 12px; }
+  @media (max-width: 520px) {
+    h1 { font-size: 1.45rem; }
+    details.case > summary { flex-wrap: wrap; }
+    details.case > summary .hint { margin-left: 22px; }
+  }
+  @media print {
+    body { background: #fff; color: #000; }
+    .toolbar, .cmd button { display: none; }
+    details.case { break-inside: avoid; }
+    details.case .body { display: block; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <p class="lead" style="margin:0">grub-icon-menu 1.3.0 · HP laptop · Ubuntu 26.04 + Windows with BitLocker</p>
+  <h1>Boot help notes</h1>
+  <p class="lead">What to do when starting the laptop goes wrong. Each case says what you see, why it happens and what to type. Nothing here deletes data. Keep a copy on your phone: you may need it when the laptop does not start.</p>
+
+  <nav class="toc" aria-label="Contents">
+    <strong>Contents</strong>
+    <ul>
+      <li><a href="#key">First: save the BitLocker recovery key</a></li>
+      <li><a href="#keys">Keys and menus</a></li>
+      <li><a href="#restart">Windows takes an extra restart</a></li>
+      <li><a href="#recovery">BitLocker asks for the recovery key</a></li>
+      <li><a href="#messages">The Windows icon shows a message</a></li>
+      <li><a href="#bios">Before a BIOS / firmware update</a></li>
+      <li><a href="#straight">Laptop starts Windows directly, no menu</a></li>
+      <li><a href="#nomenu">No menu, black screen, grub&gt; prompt</a></li>
+      <li><a href="#newos">Installed another system (Kali, Mint, ...)</a></li>
+      <li><a href="#look">Background or icons look wrong</a></li>
+      <li><a href="#uninstall">After uninstalling: no Windows entry</a></li>
+      <li><a href="#updates">Ubuntu updates</a></li>
+      <li><a href="#clock">Clock is wrong after using Windows</a></li>
+      <li><a href="#usb">Repair from a live USB</a></li>
+      <li><a href="#never">Never do these</a></li>
+      <li><a href="#commands">All commands</a></li>
+    </ul>
+    <div class="toolbar">
+      <button type="button" data-act="open">Open all</button>
+      <button type="button" data-act="close">Close all</button>
+      <button type="button" data-act="print">Print</button>
+    </div>
+  </nav>
+
+  <h2 id="key">1. First: save the BitLocker recovery key</h2>
+  <div class="callout key">
+    <strong class="tag">Do this today</strong>
+    <p>Without the 48-digit recovery key, a locked Windows drive cannot be opened, not even by Microsoft. Keep it <em>outside</em> this laptop: printed, on your phone, or in your Microsoft account.</p>
+  </div>
+  <ul>
+    <li><strong>Microsoft account:</strong> on any device open <a href="https://aka.ms/myrecoverykey">aka.ms/myrecoverykey</a>, sign in with the account used on this Windows.</li>
+    <li><strong>In Windows</strong> (Command Prompt <em>as administrator</em>): shows the key as "Numerical Password".</li>
+  </ul>
+  <div class="cmd"><pre>manage-bde -protectors -get C:</pre></div>
+  <ul>
+    <li><strong>Or:</strong> Control Panel → System and Security → BitLocker Drive Encryption → <em>Back up your recovery key</em> (on Windows Home: Settings → Privacy &amp; security → Device encryption).</li>
+    <li>The blue recovery screen shows a <strong>Key ID</strong>. The saved key whose ID starts the same way is the right one.</li>
+  </ul>
+
+  <h2 id="keys">2. Keys and menus</h2>
+  <div class="tablewrap"><table>
+    <tr><th>Where</th><th>Key</th><th>What it does</th></tr>
+    <tr><td>Icon menu</td><td><kbd>↑</kbd> <kbd>↓</kbd></td><td>move the arrow between Windows and Tux</td></tr>
+    <tr><td>Icon menu</td><td><kbd>Enter</kbd></td><td>start the selected system (<kbd>→</kbd> does the same)</td></tr>
+    <tr><td>Icon menu</td><td><kbd>Esc</kbd></td><td>full menu with names: recovery mode, older kernels, memory test, UEFI settings</td></tr>
+    <tr><td>Icon menu</td><td><kbd>c</kbd> / <kbd>e</kbd></td><td>GRUB command line / edit entry (<kbd>Esc</kbd> goes back)</td></tr>
+    <tr><td>HP logo at power-on</td><td><kbd>Esc</kbd> then <kbd>F9</kbd></td><td><strong>firmware boot menu</strong>: pick <em>Ubuntu</em> or <em>Windows Boot Manager</em>. Works even when GRUB is broken; Windows started here never asks for the key</td></tr>
+    <tr><td>HP logo at power-on</td><td><kbd>Esc</kbd> then <kbd>F10</kbd></td><td>BIOS setup (boot order, Secure Boot). Changing security settings there can trigger the recovery key</td></tr>
+  </table></div>
+
+  <h2 id="cases">3. Problems and what to do</h2>
+
+  <details class="case" id="restart">
+    <summary>Picking Windows takes an extra restart <span class="hint">normal</span></summary>
+    <div class="body">
+      <span class="label">What you see</span>
+      <p>After choosing the Windows icon the background stays for a few seconds, the laptop restarts (HP logo), then Windows starts.</p>
+      <span class="label">Why</span>
+      <p>BitLocker only unlocks when Windows is started by the laptop's firmware, the same way as without Ubuntu. GRUB therefore does not start Windows itself. It starts a tiny helper that asks the firmware to start <em>Windows Boot Manager</em> once (<code>BootNext</code>) and restarts. Only the firmware can start Windows the way BitLocker expects, so the restart cannot be removed without bringing back the key prompt.</p>
+      <span class="label">What to do</span>
+      <p>Nothing. The request is used once; the next start shows the menu again.</p>
+    </div>
+  </details>
+
+  <details class="case" id="recovery">
+    <summary>BitLocker asks for the recovery key <span class="hint">blue screen</span></summary>
+    <div class="body">
+      <span class="label">What you see</span>
+      <p>A blue "BitLocker recovery" screen asking for a 48-digit key.</p>
+      <span class="label">Why</span>
+      <p>The TPM chip only releases the key when the start-up looks exactly like when BitLocker was set up. Usual causes:</p>
+      <ul>
+        <li>a <strong>BIOS/UEFI update</strong> (also offered by Ubuntu Software / fwupd, HP Support Assistant, Windows Update);</li>
+        <li>changes in the BIOS setup: Secure Boot on/off, TPM cleared or turned off, boot mode;</li>
+        <li>Windows started <strong>from GRUB</strong> by a "chainload" entry (only if os-prober was switched on again, or <code>--windows-boot chainload</code>). The Windows icon and <kbd>F9</kbd> never do this.</li>
+      </ul>
+      <span class="label">What to do</span>
+      <ol>
+        <li>Type the recovery key (see <a href="#key">section 1</a>). Windows starts normally; nothing is lost.</li>
+        <li>Restart once more. If Windows starts without asking, you are done.</li>
+        <li>If it asks <em>every</em> time: in Ubuntu run the health check. It shows whether GRUB has a chainload entry or the Windows icon is in chainload mode.</li>
+      </ol>
+      <div class="cmd"><pre>cd ~/Desktop/grub-icon-menu
+sudo ./doctor.sh</pre></div>
+      <ol start="4">
+        <li>After a deliberate change (BIOS update, Secure Boot change), make BitLocker accept the new state: in Windows, Control Panel → BitLocker → <em>Suspend protection</em>, restart, and it resumes by itself (or click <em>Resume protection</em>). In an administrator Command Prompt this is:</li>
+      </ol>
+      <div class="cmd"><pre>manage-bde -protectors -disable C: -RebootCount 1</pre></div>
+    </div>
+  </details>
+
+  <details class="case" id="messages">
+    <summary>The Windows icon shows a message instead of restarting <span class="hint">nothing was changed</span></summary>
+    <div class="body">
+      <p>The helper only writes <code>BootNext</code> when everything is as expected. Otherwise it writes <strong>nothing</strong>, explains the problem in large text, and waits: <kbd>Enter</kbd> restarts into the menu, after 60 seconds the laptop turns off (so it can never loop). Windows was not started, so BitLocker was not involved. To get into Windows right now use <kbd>Esc</kbd> <kbd>F9</kbd> → <em>Windows Boot Manager</em>.</p>
+      <div class="tablewrap"><table>
+        <tr><th>Message</th><th>Meaning</th><th>Fix (in Ubuntu)</th></tr>
+        <tr><td>The firmware boot list has no "Windows Boot Manager" entry.</td><td>The firmware lost its Windows entry (BIOS reset, Windows repair).</td><td>Start Windows once with <kbd>F9</kbd> (Windows usually re-creates its entry). Then <code>sudo ./doctor.sh</code> and <code>sudo ./update.sh</code>.</td></tr>
+        <tr><td>The firmware did not use the last request (BootNext=Boot#### was still set).</td><td>The previous restart ignored the request. The leftover was removed.</td><td>Try the Windows icon once more. If it happens again, the firmware does not honour BootNext (check after BIOS updates); use <kbd>F9</kbd> and run <code>sudo ./doctor.sh</code>.</td></tr>
+        <tr><td>BootNext could not be set (read back: …).</td><td>The firmware refused the write (variable storage full or locked).</td><td>Use <kbd>F9</kbd>. Restart the laptop fully (power off 10 s) and try again; <code>sudo ./doctor.sh</code>.</td></tr>
+        <tr><td>The UEFI boot entries cannot be read.</td><td>The helper was not started in UEFI mode.</td><td>Check the BIOS boot mode is UEFI; <code>sudo ./doctor.sh</code>.</td></tr>
+        <tr><td>The firmware boot list has no entry for \efi\kali\shimx64.efi.</td><td>The icon of another system (here Kali): its UEFI boot entry is gone (system removed, BIOS reset).</td><td><code>sudo ./update.sh</code> (removes the icon if the system is gone). To start it now: <kbd>F9</kbd>.</td></tr>
+        <tr><td>GRUB: <code>handoff.img is missing - nothing was started.</code></td><td>The helper file in <code>/boot</code> is gone.</td><td><code>sudo ./update.sh --rebuild</code></td></tr>
+        <tr><td>GRUB: <code>bad shim signature</code> or <code>you need to load the kernel first</code></td><td>The kernel for the helper is not signed (Secure Boot refuses it). Version 1.2.0 picks the newest <em>signed</em> kernel.</td><td><code>sudo update-grub</code>, then <code>sudo ./doctor.sh</code>. Install <code>linux-generic</code> if no signed kernel is left.</td></tr>
+      </table></div>
+    </div>
+  </details>
+
+  <details class="case" id="bios">
+    <summary>Before a BIOS / firmware update <span class="hint">avoid the key prompt</span></summary>
+    <div class="body">
+      <span class="label">Why</span>
+      <p>A BIOS update changes what the TPM measures, so the next Windows start asks for the recovery key. That happens with or without Ubuntu.</p>
+      <span class="label">What to do</span>
+      <ol>
+        <li>Have the recovery key ready (<a href="#key">section 1</a>).</li>
+        <li>Prefer updating the BIOS <strong>from Windows</strong> (HP Support Assistant, Windows Update): they normally suspend BitLocker themselves.</li>
+        <li>If you update from Ubuntu (Software app / <code>fwupdmgr</code>), first suspend BitLocker in Windows: Control Panel → BitLocker → <em>Suspend protection</em>, or in an administrator Command Prompt:</li>
+      </ol>
+      <div class="cmd"><pre>manage-bde -protectors -disable C: -RebootCount 2</pre></div>
+      <ol start="4">
+        <li>Then do the update, then start Windows with the Windows icon. BitLocker turns itself back on.</li>
+      </ol>
+      <p><code>./doctor.sh</code> warns when Ubuntu offers a BIOS/UEFI update.</p>
+    </div>
+  </details>
+
+  <details class="case" id="straight">
+    <summary>The laptop starts Windows directly, no menu <span class="hint">boot order</span></summary>
+    <div class="body">
+      <span class="label">Why</span>
+      <p>Windows updates sometimes put <em>Windows Boot Manager</em> first in the firmware boot order.</p>
+      <span class="label">What to do</span>
+      <ol>
+        <li>Power on, press <kbd>Esc</kbd> <kbd>F9</kbd>, choose <em>Ubuntu</em>.</li>
+        <li>In Ubuntu, the health check prints the exact command that puts Ubuntu first again (it only reorders; nothing is deleted):</li>
+      </ol>
+      <div class="cmd"><pre>sudo ./doctor.sh
+# for example:  sudo efibootmgr -o 0000,0001,0002,9999</pre></div>
+      <p>Or in BIOS setup (<kbd>Esc</kbd> <kbd>F10</kbd>) → Boot options → move <em>Ubuntu</em> to the top.</p>
+    </div>
+  </details>
+
+  <details class="case" id="nomenu">
+    <summary>No menu, black screen, or a <code>grub&gt;</code> prompt <span class="hint">GRUB problem</span></summary>
+    <div class="body">
+      <ol>
+        <li>If the icon menu looks wrong: press <kbd>Esc</kbd> for the full menu and choose <em>Ubuntu</em>.</li>
+        <li>If GRUB does not start: power on, <kbd>Esc</kbd> <kbd>F9</kbd> → <em>Ubuntu</em> or <em>Windows Boot Manager</em>. These firmware entries are never changed by grub-icon-menu.</li>
+        <li>Once Ubuntu runs, switch the icon menu off (the plain menu keeps the safe Windows entry), or remove it:</li>
+      </ol>
+      <div class="cmd"><pre>sudo ./update.sh --plain        # plain text menu, Windows entry kept
+sudo ./uninstall.sh             # or remove grub-icon-menu completely</pre></div>
+      <ol start="4">
+        <li>Every install/update made a backup; each one restores itself:</li>
+      </ol>
+      <div class="cmd"><pre>ls ~/grub-icon-menu-backup/
+sudo ~/grub-icon-menu-backup/&lt;snapshot&gt;/restore.sh ~/grub-icon-menu-backup/&lt;snapshot&gt;</pre></div>
+      <p>If Ubuntu does not start at all: <a href="#usb">repair from a live USB</a>.</p>
+    </div>
+  </details>
+
+  <details class="case" id="newos">
+    <summary>You installed another system (Kali, Linux Mint, Arch, ...) <span class="hint">add its icon</span></summary>
+    <div class="body">
+      <span class="label">What happens</span>
+      <p>The installer of the new system usually installs its own boot loader and puts it <strong>first</strong> in the firmware boot order. The next start then shows <em>its</em> menu, not the icons. Its menu may also offer "Windows Boot Manager": that entry starts Windows from GRUB and <strong>asks for the BitLocker recovery key</strong>. Don't use it.</p>
+      <span class="label">What to do</span>
+      <ol>
+        <li>Start Ubuntu: power on, <kbd>Esc</kbd> <kbd>F9</kbd> → <em>Ubuntu</em> (or pick Ubuntu in the new system's menu).</li>
+        <li>Put Ubuntu first again. The health check prints the exact command:</li>
+      </ol>
+      <div class="cmd"><pre>cd ~/Desktop/grub-icon-menu
+sudo ./doctor.sh                # e.g. sudo efibootmgr -o 0000,0001,0003,0002</pre></div>
+      <ol start="3">
+        <li>Add its icon:</li>
+      </ol>
+      <div class="cmd"><pre>sudo ./update.sh                # Kali, Fedora, Arch, Debian, ... (own boot entry)
+sudo ./update.sh --os-prober    # Linux Mint, Zorin, elementary (share Ubuntu's)</pre></div>
+      <p>Systems with their own boot entry are started by the firmware, like Windows. Up to 6 icons fit; more systems stay in the ESC menu. The 37 known systems are listed in <code>icons/README.md</code>.</p>
+      <p><strong>Linux Mint, Zorin, elementary</strong> use the same boot folder as Ubuntu (<code>\EFI\ubuntu</code>). Installing one of them can replace Ubuntu's boot loader. If the icons do not come back after <code>update.sh</code>, reinstall Ubuntu's: <code>sudo grub-install</code> followed by <code>sudo update-grub</code>.</p>
+    </div>
+  </details>
+
+  <details class="case" id="look">
+    <summary>Background or icons look wrong <span class="hint">looks only</span></summary>
+    <div class="body">
+      <ul>
+        <li><strong>Icons hard to see on the picture:</strong> force a colour or the shadow: <code>sudo ./update.sh --icon-color white --shadow on</code> (or <code>black</code>).</li>
+        <li><strong>Picture looks soft:</strong> it is smaller than the screen and was enlarged. Use one at least 1920×1080.</li>
+        <li><strong>Picture cut off at the sides:</strong> it is scaled to fill the screen; a 16:9 picture fits exactly.</li>
+        <li><strong>Busy picture:</strong> choose one with a calm middle (where the icons are).</li>
+        <li><strong>Back to the white screen:</strong> <code>sudo ./update.sh -bg none</code></li>
+      </ul>
+      <div class="cmd"><pre>sudo ./update.sh -bg ~/Pictures/wallpaper.jpg
+sudo ./update.sh -bg none</pre></div>
+    </div>
+  </details>
+
+  <details class="case" id="uninstall">
+    <summary>After uninstalling, GRUB has no Windows entry <span class="hint">by design</span></summary>
+    <div class="body">
+      <p>GRUB's own Windows entry ("chainload") would ask for the recovery key every time, so grub-icon-menu keeps it switched off, also after uninstalling. Start Windows with <kbd>Esc</kbd> <kbd>F9</kbd>.</p>
+      <p>If you only want the normal text menu, do not uninstall: <code>sudo ./update.sh --plain</code> keeps the entry <em>Windows Boot Manager (started by the UEFI firmware)</em>, which does not ask for the key. <code>sudo ./update.sh --icons</code> brings the icons back.</p>
+    </div>
+  </details>
+
+  <details class="case" id="updates">
+    <summary>Ubuntu updates (kernel, GRUB, shim) <span class="hint">nothing to do</span></summary>
+    <div class="body">
+      <p>Kernel updates run <code>update-grub</code>, which rebuilds the menu and picks the newest signed kernel for the Windows icon. GRUB and shim updates do not matter for BitLocker any more, because they are not part of Windows' start-up.</p>
+      <p>After a big Ubuntu upgrade (e.g. to the next release) run:</p>
+      <div class="cmd"><pre>sudo ./doctor.sh
+sudo ./update.sh</pre></div>
+    </div>
+  </details>
+
+  <details class="case" id="clock">
+    <summary>The clock is wrong after using Windows <span class="hint">5:30 h off</span></summary>
+    <div class="body">
+      <span class="label">Why</span>
+      <p>Windows keeps the hardware clock in local time (IST), Ubuntu in UTC. After Windows, Ubuntu starts 5 hours 30 minutes ahead until it syncs over the internet. This laptop's boot log shows exactly that.</p>
+      <span class="label">What to do</span>
+      <p>Tell Windows to use UTC too: administrator Command Prompt, then restart Windows:</p>
+      <div class="cmd"><pre>reg add "HKLM\SYSTEM\CurrentControlSet\Control\TimeZoneInformation" /v RealTimeIsUniversal /d 1 /t REG_DWORD /f</pre></div>
+      <p>This only changes how the time is stored; BitLocker does not care.</p>
+    </div>
+  </details>
+
+  <details class="case" id="usb">
+    <summary>Repair from a live USB <span class="hint">Ubuntu does not start</span></summary>
+    <div class="body">
+      <p>Start the Ubuntu USB (<kbd>Esc</kbd> <kbd>F9</kbd> → USB), choose "Try Ubuntu", open a terminal. On this laptop Ubuntu's root is encrypted (LUKS on <code>nvme0n1p5</code>, LVM inside), <code>/boot</code> is <code>nvme0n1p4</code> and the EFI partition is <code>nvme0n1p1</code>. Check the names with <code>lsblk -f</code> first.</p>
+      <div class="cmd"><pre>sudo cryptsetup open /dev/nvme0n1p5 dm_crypt-0    # asks for your disk password
+sudo vgchange -ay
+sudo mount /dev/ubuntu-vg/ubuntu-lv /mnt
+sudo mount /dev/nvme0n1p4 /mnt/boot
+sudo mount /dev/nvme0n1p1 /mnt/boot/efi
+for d in dev proc sys run; do sudo mount --bind /$d /mnt/$d; done
+sudo chroot /mnt rm -f /etc/grub.d/99_grub_icon_menu /etc/default/grub.d/99-grub-icon-menu.cfg
+sudo chroot /mnt update-grub</pre></div>
+      <p>This removes the icon menu; the normal Ubuntu menu comes back. Start Windows with <kbd>F9</kbd>.</p>
+    </div>
+  </details>
+
+  <h2 id="never">4. Never do these</h2>
+  <div class="callout bad">
+    <strong class="tag">Can lock Windows or break booting</strong>
+    <ul>
+      <li>Start Windows from a GRUB entry that "chainloads" it, or turn os-prober back on (<code>GRUB_DISABLE_OS_PROBER=false</code>).</li>
+      <li>Clear the TPM, or switch Secure Boot off/on, without suspending BitLocker first.</li>
+      <li>Delete or reformat the EFI partition (<code>nvme0n1p1</code>), or delete firmware boot entries with <code>efibootmgr -b … -B</code>.</li>
+      <li>Install a BIOS update from Ubuntu without the recovery key at hand.</li>
+      <li>Start Windows from <em>another</em> system's boot menu (Kali, Mint, ...): it chainloads Windows too.</li>
+    </ul>
+  </div>
+  <div class="callout ok">
+    <strong class="tag">Always safe</strong>
+    <ul>
+      <li><kbd>Esc</kbd> <kbd>F9</kbd> at power-on, then <em>Ubuntu</em> or <em>Windows Boot Manager</em>.</li>
+      <li><code>sudo ./doctor.sh</code> and <code>sudo ./inspect.sh</code>: they only read.</li>
+      <li><code>sudo efibootmgr --delete-bootnext</code>: cancels a pending one-time Windows start.</li>
+    </ul>
+  </div>
+
+  <h2 id="commands">5. All commands</h2>
+  <p>Run them in the <code>grub-icon-menu</code> folder (<code>cd ~/Desktop/grub-icon-menu</code>).</p>
+  <div class="tablewrap"><table>
+    <tr><th>Command</th><th>What it does</th></tr>
+    <tr><td><code>sudo ./doctor.sh</code></td><td>health check, read-only, prints fixes</td></tr>
+    <tr><td><code>sudo ./inspect.sh</code></td><td>full report of the boot setup, read-only</td></tr>
+    <tr><td><code>sudo ./update.sh</code></td><td>re-detect systems, refresh everything</td></tr>
+    <tr><td><code>sudo ./update.sh -bg FILE</code> / <code>-bg none</code></td><td>background picture / white screen</td></tr>
+    <tr><td><code>sudo ./update.sh --icon-color auto|black|white</code></td><td>icon colour</td></tr>
+    <tr><td><code>sudo ./update.sh --shadow auto|on|off</code></td><td>shadow under icons and title</td></tr>
+    <tr><td><code>sudo ./update.sh --plain</code> / <code>--icons</code></td><td>text menu (safe Windows entry kept) / icons</td></tr>
+    <tr><td><code>sudo ./update.sh --os-prober</code> / <code>--no-os-prober</code></td><td>also find Linux Mint, Zorin, ... on other partitions (Windows stays safe) / off</td></tr>
+    <tr><td><code>sudo ./update.sh -rt</code> / <code>--show-title</code></td><td>hide / show the title text</td></tr>
+    <tr><td><code>sudo ./update.sh --rebuild</code></td><td>rebuild the theme and the Windows helper</td></tr>
+    <tr><td><code>sudo ./uninstall.sh</code></td><td>remove grub-icon-menu</td></tr>
+    <tr><td><code>sudo efibootmgr</code></td><td>list firmware boot entries and the boot order</td></tr>
+  </table></div>
+
+  <footer>
+    grub-icon-menu 1.3.0 · docs/help.html · Works offline. Details: README.md in the same folder.
+  </footer>
+</main>
+<script>
+  // Copy buttons for command blocks.
+  document.querySelectorAll('.cmd').forEach(function (box) {
+    var pre = box.querySelector('pre');
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', function () {
+      var text = pre.innerText.replace(/\s+#.*$/gm, '').trim();
+      var done = function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1500); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { btn.textContent = 'Select and copy'; });
+      } else {
+        var r = document.createRange(); r.selectNodeContents(pre);
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        btn.textContent = 'Press Ctrl+C';
+      }
+    });
+    box.appendChild(btn);
+  });
+  // Open the case a link points to.
+  function openTarget() {
+    var el = location.hash && document.getElementById(location.hash.slice(1));
+    if (el && el.tagName === 'DETAILS') el.open = true;
+  }
+  window.addEventListener('hashchange', openTarget);
+  openTarget();
+  document.querySelectorAll('.toolbar button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var act = b.getAttribute('data-act');
+      if (act === 'print') {
+        document.querySelectorAll('details.case').forEach(function (d) { d.open = true; });
+        window.print();
+        return;
+      }
+      document.querySelectorAll('details.case').forEach(function (d) { d.open = act === 'open'; });
+    });
+  });
+</script>
+</body>
+</html>
